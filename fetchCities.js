@@ -1,5 +1,6 @@
-const service = require("./service");
-
+const stateList = require("./stateList.json");
+const util = require("util");
+const fs = require("fs");
 const puppeteer = require("puppeteer");
 
 let dataSheetUrl =
@@ -21,7 +22,7 @@ let dataSheetUrl =
     let cases = [];
     // get the hotel elements
     let sheetRows = document
-      .querySelector("#\\30")
+      .querySelector("#\\31\\32\\30\\37\\33\\37\\38\\30\\32\\33")
       .querySelectorAll("tbody tr[style]");
 
     //get table headers
@@ -38,7 +39,7 @@ let dataSheetUrl =
         0,
         tableHeaders.length
       );
-      if (rowCells[0].innerText) {
+      if (rowCells[0].innerText && rowCells[1].innerText) {
         let rowJson = {};
         rowCells.forEach((rowCell, index) => {
           try {
@@ -56,5 +57,35 @@ let dataSheetUrl =
   console.log("Response time ", (endTime - startTime) / 1000, "s");
   console.log(rawData.length);
   console.dir(rawData.slice(0, 3));
-  service.uploadDataToServer(rawData, () => process.exit(1));
+  generateInsertQueries(rawData, () => process.exit(1));
 })();
+
+function generateInsertQueries(data, callback) {
+  var insertQueries = [];
+
+  insertQueries = data.map((city, index) => {
+    var code = city["District"];
+    var name = code;
+    var stateCode = stateList[city["State"].toLowerCase()];
+    var otherName =
+      city["Other Names/Spellings"] != null
+        ? city["Other Names/Spellings"]
+        : city["Notes"];
+    return util.format(
+      "INSERT into city (id,code, name, other_name, state_code,country_code) values(%d,'%s','%s','%s','%s','IN');",
+      index + 1,
+      code,
+      name,
+      otherName,
+      stateCode
+    );
+  });
+  //console.dir(insertQueries);
+  fs.writeFile("citiesInsertQueries.txt", insertQueries.join("\n"), function (
+    err
+  ) {
+    if (err) return console.log(err);
+    console.log("File written successfully");
+    callback();
+  });
+}
