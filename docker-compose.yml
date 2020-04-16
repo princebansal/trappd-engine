@@ -1,0 +1,9 @@
+version: '3'
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+       - "./scripts:/scripts"
+    command: "node scripts/app.js"
