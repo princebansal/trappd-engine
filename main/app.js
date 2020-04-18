@@ -1,4 +1,5 @@
 const service = require("./service");
+const fs = require("fs");
 
 const puppeteer = require("puppeteer");
 
@@ -13,7 +14,7 @@ let dataSheetUrl =
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 926 });
-  await page.goto(dataSheetUrl, { timeout: 60000 });
+  await page.goto(dataSheetUrl, { timeout: 90000 });
   console.log("Connected to target");
   console.log("Evaluating website");
   // get hotel details
@@ -51,6 +52,12 @@ let dataSheetUrl =
       }
     });
     return cases;
+  });
+  fs.writeFile("../data/rawData.txt", rawData.join("\n"), function (
+    err
+  ) {
+    if (err) return console.log(err);
+    console.log("File written successfully");
   });
   const endTime = new Date().getTime();
   console.log("Response time ", (endTime - startTime) / 1000, "s");
