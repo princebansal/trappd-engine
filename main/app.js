@@ -1,67 +1,25 @@
 const service = require("./service");
-const fs = require("fs");
-
-const puppeteer = require("puppeteer");
-
-let dataSheetUrl =
-  "https://docs.google.com/spreadsheets/u/1/d/e/2PACX-1vSz8Qs1gE_IYpzlkFkCXGcL_BqR8hZieWVi-rphN1gfrO3H4lDtVZs4kd0C3P8Y9lhsT1rhoB-Q_cP4/pubhtml";
-(async () => {
-  console.log("Starting operation [", new Date(), "]");
-  const startTime = new Date().getTime();
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox"],
-  });
-  const page = await browser.newPage();
-  await page.setViewport({ width: 1920, height: 926 });
-  await page.goto(dataSheetUrl, { timeout: 90000 });
-  console.log("Connected to target");
-  console.log("Evaluating website");
-  // get hotel details
-  let rawData = await page.evaluate(() => {
-    let cases = [];
-    // get the hotel elements
-    let sheetRows = document
-      .querySelector("#\\30")
-      .querySelectorAll("tbody tr[style]");
-
-    //get table headers
-    let tableHeaders = Array.prototype.map.call(
-      sheetRows[0].querySelectorAll("td"),
-      (cell) => cell.innerText
-    );
-    console.dir(tableHeaders);
-    let tableRows = Array.prototype.slice.call(sheetRows, 1);
-    // get the hotel data
-    tableRows.forEach((row) => {
-      let rowCells = Array.prototype.slice.call(
-        row.querySelectorAll("td"),
-        0,
-        tableHeaders.length
-      );
-      if (rowCells[0].innerText) {
-        let rowJson = {};
-        rowCells.forEach((rowCell, index) => {
-          try {
-            rowJson[tableHeaders[index]] = rowCell.innerText;
-          } catch (exception) {
-            console.err(exception);
-          }
-        });
-        cases.push(rowJson);
-      }
-    });
-    return cases;
-  });
-  fs.writeFile("../data/rawData.txt", rawData.join("\n"), function (
-    err
-  ) {
-    if (err) return console.log(err);
-    console.log("File written successfully");
-  });
-  const endTime = new Date().getTime();
-  console.log("Response time ", (endTime - startTime) / 1000, "s");
-  console.log(rawData.length);
-  console.dir(rawData.slice(0, 3));
-  service.uploadDataToServer(rawData, () => process.exit(1));
-})();
+const commander = require("commander");
+const fetch = require('node-fetch')
+const {rawDataURL, deathRecoveriesURL} = require('../config');
+commander
+  .version('1.0.0', '-v, --version')
+  .usage('[OPTIONS]...')
+  .option('-ds, --dataService <address>', 'Provide data service container address')
+  .parse(process.argv);
+  
+const dataServiceUrl=commander["dataService"];
+const settings = { method: "GET" };
+const data = {};
+fetch(deathRecoveriesURL, settings)
+.then(res => res.json())
+.then((json) => {
+  data['deathsAndRecoveries'] = json['deaths_recoveries']
+});
+fetch(rawDataURL, settings)
+.then(res => res.json())
+.then((json) => {
+  data['rawData'] = json['raw_data']
+}).then(()=>{
+service.uploadDataToServer(data, dataServiceUrl, () => process.exit(1));
+})
